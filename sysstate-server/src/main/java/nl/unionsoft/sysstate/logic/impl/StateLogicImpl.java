@@ -6,6 +6,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -69,8 +73,8 @@ public class StateLogicImpl implements StateLogic {
     @Inject
     @Named("pluginLogic")
     private PluginLogic pluginLogic;
-    
-    @Scheduled(initialDelay=10000, fixedRate=600000)
+
+    @Scheduled(initialDelay = 10000, fixedRate = 600000)
     public void clean() {
         LOG.info("Cleaning States...");
         Properties sysstateProperties = pluginLogic.getPluginProperties(Constants.SYSSTATE_PLUGIN_NAME);
@@ -166,27 +170,30 @@ public class StateLogicImpl implements StateLogic {
             if (stateResolver == null) {
                 throw new IllegalStateException("No stateResolver found for type '" + pluginClass + "'");
             }
+            CompletableFuture.runAsync(() -> {
+                stateResolver.setState(instanceDto, state);
+                if (state.getState() == null) {
+                    throw new IllegalStateException("Result has no state!");
+                }
+            }).get(120, TimeUnit.SECONDS);
 
-            stateResolver.setState(instanceDto, state);
-            if (state.getState() == null) {
-                throw new IllegalStateException("Result has no state!");
-            }
         } catch (final NoSuchBeanDefinitionException e) {
             state.setState(StateType.ERROR);
             state.setDescription("MISSING PLUGIN");
             state.setResponseTime(0L);
             state.appendMessage(StateUtil.exceptionAsMessage(e));
+        } catch (TimeoutException e) {
+            state.setState(StateType.ERROR);
+            state.setDescription("TIMEOUT");
+            state.appendMessage(StateUtil.exceptionAsMessage(e));
         } catch (final Exception e) {
             LOG.warn("Unable to determine state, caught Exception!", e);
             state.setState(StateType.ERROR);
             state.setDescription(e.getMessage());
-            state.setResponseTime(0L);
             state.appendMessage(StateUtil.exceptionAsMessage(e));
         } finally {
             final Long responseTime = System.currentTimeMillis() - now;
-            if (state.getResponseTime() < responseTime) {
-                state.setResponseTime(responseTime);
-            }
+            state.setResponseTime(responseTime);
             state.setCreationDate(new DateTime());
         }
     }

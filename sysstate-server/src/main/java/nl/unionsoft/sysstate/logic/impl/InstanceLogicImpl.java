@@ -1,25 +1,24 @@
 package nl.unionsoft.sysstate.logic.impl;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.print.attribute.standard.PrinterLocation;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.ivy.Main;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -33,6 +32,7 @@ import nl.unionsoft.sysstate.common.dto.EnvironmentDto;
 import nl.unionsoft.sysstate.common.dto.FilterDto;
 import nl.unionsoft.sysstate.common.dto.InstanceDto;
 import nl.unionsoft.sysstate.common.dto.ProjectEnvironmentDto;
+import nl.unionsoft.sysstate.common.dto.StateDto;
 import nl.unionsoft.sysstate.common.logic.EnvironmentLogic;
 import nl.unionsoft.sysstate.common.logic.InstanceLogic;
 import nl.unionsoft.sysstate.common.logic.ProjectEnvironmentLogic;
@@ -45,14 +45,14 @@ import nl.unionsoft.sysstate.dao.ProjectEnvironmentDao;
 import nl.unionsoft.sysstate.dao.PropertyDao;
 import nl.unionsoft.sysstate.domain.Instance;
 import nl.unionsoft.sysstate.domain.ProjectEnvironment;
-import nl.unionsoft.sysstate.job.UpdateInstanceJob;
 import nl.unionsoft.sysstate.logic.PluginLogic;
 import nl.unionsoft.sysstate.logic.StateLogic;
 import nl.unionsoft.sysstate.logic.StateResolverLogic;
+import nl.unionsoft.sysstate.logic.WorkLogic;
 
 @Service("instanceLogic")
 @Transactional(readOnly = false, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-public class InstanceLogicImpl implements InstanceLogic, InitializingBean {
+public class InstanceLogicImpl implements InstanceLogic {
 
     private static final Logger logger = LoggerFactory.getLogger(InstanceLogicImpl.class);
 
@@ -111,52 +111,14 @@ public class InstanceLogicImpl implements InstanceLogic, InitializingBean {
     @Inject
     @Named("instancePropertiesConverter")
     private InstancePropertiesConverter instancePropertiesConverter;
-    
-   
+
+    @Inject
+    private WorkLogic workLogic;
 
     private Map<Long, ScheduledFuture<?>> instanceTasks;
 
     public InstanceLogicImpl() {
         instanceTasks = new HashMap<>();
-    }
-
-    public void queueForUpdate(final Long instanceId) {
-
-        Optional<Instance> optionalInstance = instanceDao.getInstance(instanceId);
-        if (!optionalInstance.isPresent()) {
-            throw new IllegalStateException("No instance could be found for the given instanceId [" + instanceId + "]");
-        }
-        updateTriggerJob(optionalInstance.get());
-    }
-
-    private void updateTriggerJob(final Instance instance) {
-        if (instance == null) {
-            throw new IllegalStateException("Instance is required!");
-        }
-        logger.info("Creating or updating queue job for instance with id: {}", instance.getId());
-        removeTriggerJob(instance.getId());
-        addTriggerJob(instance.getId());
-    }
-
-    public void addTriggerJob(final long instanceId) {
-        Optional<Instance> optionalInstance = instanceDao.getInstance(instanceId);
-        if (!optionalInstance.isPresent()) {
-            throw new IllegalStateException("No instance could be found for instanceId [" + instanceId + "]");
-        }
-        Instance instance = optionalInstance.get();
-
-        final long refreshTimeout = instance.getRefreshTimeout();
-        long period = refreshTimeout < 30000 ? 30000 : refreshTimeout;
-        UpdateInstanceJob updateInstanceJob = new UpdateInstanceJob(this, stateLogic, instanceId);
-        Date bitInTheFuture = Date.from(LocalDateTime.now().plusSeconds(10).atZone(ZoneId.systemDefault()).toInstant());
-        instanceTasks.put(instanceId, scheduler.scheduleAtFixedRate(updateInstanceJob, bitInTheFuture, period));
-    }
-
-    public void removeTriggerJob(final long instanceId) {
-        ScheduledFuture<?> scheduledFuture = instanceTasks.get(instanceId);
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(true);
-        }
     }
 
     public List<InstanceDto> getInstances() {
@@ -167,7 +129,6 @@ public class InstanceLogicImpl implements InstanceLogic, InitializingBean {
         return OptionalConverter.convert(instanceDao.getInstance(instanceId), instanceConverter);
     }
 
-    
     public Long createOrUpdateInstance(final InstanceDto dto) {
         Instance instance = getInstanceForDto(dto);
 
@@ -180,10 +141,10 @@ public class InstanceLogicImpl implements InstanceLogic, InitializingBean {
         instance.setRefreshTimeout(dto.getRefreshTimeout());
 
         final Optional<ProjectEnvironment> optProjectEnvironment = getProjectEnvironmentFromDto(dto.getProjectEnvironment());
-        if (!optProjectEnvironment.isPresent()){
+        if (!optProjectEnvironment.isPresent()) {
             throw new IllegalStateException("Undefined projectEnvironment [" + dto.getProjectEnvironment() + "] ");
         }
-        
+
         ProjectEnvironment projectEnvironment = optProjectEnvironment.get();
         if (instance.getProjectEnvironment() == null || !instance.getProjectEnvironment().getId().equals(projectEnvironment.getId())) {
             // ProjectEnvironment changed or null
@@ -192,8 +153,6 @@ public class InstanceLogicImpl implements InstanceLogic, InitializingBean {
 
         instanceDao.createOrUpdate(instance);
         propertyDao.setInstanceProperties(instance, dto.getConfiguration());
-        updateTriggerJob(instance);
-
         dto.setId(instance.getId());
         return instance.getId();
     }
@@ -208,7 +167,7 @@ public class InstanceLogicImpl implements InstanceLogic, InitializingBean {
         if (StringUtils.isNotEmpty(dto.getProject().getName()) && StringUtils.isNotEmpty(dto.getEnvironment().getName())) {
             return Optional.ofNullable(projectEnvironmentDao.getProjectEnvironment(dto.getProject().getName(), dto.getEnvironment().getName()));
         }
-       return Optional.empty();
+        return Optional.empty();
 
     }
 
@@ -228,7 +187,6 @@ public class InstanceLogicImpl implements InstanceLogic, InitializingBean {
 
     public void delete(final Long instanceId) {
         instanceDao.delete(instanceId);
-        removeTriggerJob(instanceId);
     }
 
     @Scheduled(initialDelay = 10000, fixedRate = 60000)
@@ -248,13 +206,6 @@ public class InstanceLogicImpl implements InstanceLogic, InitializingBean {
 
     public List<InstanceDto> getInstancesForProjectAndEnvironment(final String projectPrefix, final String environmentPrefix) {
         return ListConverter.convert(instanceConverter, instanceDao.getInstancesForProjectAndEnvironment(projectPrefix, environmentPrefix));
-    }
-
-    public void afterPropertiesSet() throws Exception {
-        List<Instance> instances = instanceDao.getInstances();
-        for (Instance instance : instances) {
-            addTriggerJob(instance.getId());
-        }
     }
 
     public InstanceDto generateInstanceDto(String type) {
@@ -281,9 +232,6 @@ public class InstanceLogicImpl implements InstanceLogic, InitializingBean {
         }
         return instance;
     }
-
-  
-  
 
     @Override
     public List<InstanceDto> getInstancesForEnvironment(Long environmentId) {
@@ -313,6 +261,41 @@ public class InstanceLogicImpl implements InstanceLogic, InitializingBean {
         return OptionalConverter.convert(instanceDao.getInstanceByReference(reference), instanceConverter);
     }
 
- 
+    @Override
+    public void queueForUpdate(Long instanceId) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    @Scheduled(initialDelay = 5000, fixedRate = 500)
+    public void refreshInstances() {
+        instanceDao.getInstances().stream()
+                .map(instance -> instanceConverter.convert(instance))
+                .filter(instance -> needsToBeUpdated(instance))
+                .forEach(instance -> refreshInstance(instance));
+
+    }
+
+    private void refreshInstance(InstanceDto instance) {
+        String reference = String.format("instance-%s", instance.getId());
+        workLogic.aquireWorkLock(reference)
+                .ifPresent(workId -> {
+                    CompletableFuture.supplyAsync(() -> stateLogic.requestStateForInstance(instance))
+                            .thenApply(state -> stateLogic.createOrUpdate(state))
+                            .whenComplete((it, err) -> {
+                                workLogic.release(workId);
+                            });
+                });
+    }
+
+    private boolean needsToBeUpdated(InstanceDto instance) {
+        logger.debug("Checking if instance [{}]  needs to be updated...", instance);
+        StateDto state = stateLogic.getLastStateForInstance(instance);
+        // Returns true if the lastUpdate + the refreshTimeout is before the current time (aka expired)
+        boolean expired = state.getLastUpdate().plusMillis(instance.getRefreshTimeout()).isBefore(new DateTime());
+        logger.debug("Instance [{}] expired: [{}]", instance, expired);
+        return expired;
+    }
 
 }
