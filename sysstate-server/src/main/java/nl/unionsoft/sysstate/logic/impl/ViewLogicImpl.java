@@ -54,6 +54,7 @@ import nl.unionsoft.sysstate.logic.ViewLogic;
 import nl.unionsoft.sysstate.util.CountUtil;
 
 @Service("viewLogic")
+@Transactional(readOnly = false, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
 public class ViewLogicImpl implements ViewLogic {
 
     private static final Logger log = LoggerFactory.getLogger(ViewLogicImpl.class);

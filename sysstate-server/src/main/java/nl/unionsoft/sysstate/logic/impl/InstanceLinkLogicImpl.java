@@ -20,6 +20,7 @@ import nl.unionsoft.sysstate.dao.InstanceLinkDao;
 import nl.unionsoft.sysstate.domain.InstanceLink;
 
 @Service("instanceLinkLogic")
+@Transactional(readOnly = false, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
 public class InstanceLinkLogicImpl implements InstanceLinkLogic {
 
     @Inject
