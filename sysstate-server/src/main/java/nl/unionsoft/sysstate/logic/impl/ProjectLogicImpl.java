@@ -55,7 +55,6 @@ public class ProjectLogicImpl implements ProjectLogic {
         return projectConverter.convert(projectDao.getProject(projectId));
     }
 
-    @Transactional(readOnly = false, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Long createOrUpdateProject(final ProjectDto project) {
         Long projectId = project.getId();
         Project theProject = null;

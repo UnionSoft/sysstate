@@ -89,7 +89,6 @@ public class EnvironmentLogicImpl implements EnvironmentLogic {
         });
     }
     
-    @Transactional(readOnly = false, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)    
     public Long createOrUpdate(final EnvironmentDto environmentDto) {
 
         Environment environment = null;
