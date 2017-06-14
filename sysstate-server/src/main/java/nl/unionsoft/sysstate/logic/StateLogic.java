@@ -27,4 +27,6 @@ public interface StateLogic {
     
     public List<StateDto> getLastStateForInstanceForEachType(InstanceDto instance);
     
+    public List<StateDto> getStatesForInstance(InstanceDto instance);
+    
 }

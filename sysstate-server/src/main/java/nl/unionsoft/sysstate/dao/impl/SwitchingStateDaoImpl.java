@@ -44,6 +44,12 @@ public class SwitchingStateDaoImpl implements StateDao {
         return getDao().getLastStateForInstance(instanceId, stateType);
     }
 
+
+    @Override
+    public List<State> getStatesForInstance(Long instanceId) {
+        return getDao().getStatesForInstance(instanceId);
+    }
+    
     @Override
     public void cleanStatesOlderThanDays(int nrOfDays) {
         getDao().cleanStatesOlderThanDays(nrOfDays);
@@ -64,5 +70,6 @@ public class SwitchingStateDaoImpl implements StateDao {
         return optStateDao.get();
 
     }
+
 
 }

@@ -96,4 +96,14 @@ public class PersistentStateDaoImpl implements StateDao {
         LOG.info("Deleted {} States", removed);
     }
 
+    @Override
+    public List<State> getStatesForInstance(Long instanceId) {
+        // @formatter:off
+        return entityManager.createNamedQuery("findLastStateForInstance", State.class)
+                .setParameter("instanceId", instanceId)
+                .setHint("org.hibernate.cacheable", true)
+                .getResultList();
+        // @formatter:on
+    }
+
 }

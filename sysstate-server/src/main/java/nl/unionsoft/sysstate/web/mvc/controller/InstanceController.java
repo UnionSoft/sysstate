@@ -114,6 +114,7 @@ public class InstanceController {
         modelAndView.addObject("instanceLinks", instanceLinkLogic.getInstanceLinks(instance.getId()));
         modelAndView.addObject("state", stateLogic.getLastStateForInstance(instance));
         modelAndView.addObject("statesPerType", stateLogic.getLastStateForInstanceForEachType(instance));
+        modelAndView.addObject("states", stateLogic.getLastStateForInstanceForEachType(instance));
         return modelAndView;
     }
 

@@ -86,11 +86,10 @@ public class SetupListener implements InitializingBean {
             String[] environments = new String[] { "123", "456", "789", "012", "345", "678", "901", "234", "567", "890" };
             Arrays.stream(environments).forEach(this::createEnvironment);
 
-            Random rnd = new Random();
             Arrays.stream(projects).forEach(projectName -> {
                 Arrays.stream(environments).forEach(environmentName -> {
                     String instanceName = String.format("%s/%s", projectName, environmentName);
-                    addTestInstance(instanceName, projectName, environmentName, createMockConfiguration(rnd.nextInt(10000), ""), "http://www.google.nl", "mockStateResolver");
+                    addTestInstance(instanceName, projectName, environmentName, createMockConfiguration(0, ""), "http://www.google.nl", "mockStateResolver");
                 });
             });
 

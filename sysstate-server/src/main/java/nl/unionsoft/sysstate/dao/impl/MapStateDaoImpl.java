@@ -80,4 +80,9 @@ public class MapStateDaoImpl implements StateDao {
         return idCounter++;
     }
 
+    @Override
+    public List<State> getStatesForInstance(Long instanceId) {
+        return sortedStreamForInstance(instanceId).collect(Collectors.toList());
+    }
+
 }

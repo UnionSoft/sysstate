@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import nl.unionsoft.commons.converter.ListConverter;
 import nl.unionsoft.commons.list.model.ListRequest;
 import nl.unionsoft.commons.list.model.ListResponse;
 import nl.unionsoft.sysstate.Constants;
@@ -34,6 +35,7 @@ import nl.unionsoft.sysstate.common.enums.StateType;
 import nl.unionsoft.sysstate.common.extending.StateResolver;
 import nl.unionsoft.sysstate.common.util.StateUtil;
 import nl.unionsoft.sysstate.common.util.SysStateStringUtils;
+import nl.unionsoft.sysstate.converter.InstanceConverter;
 import nl.unionsoft.sysstate.converter.OptionalConverter;
 import nl.unionsoft.sysstate.converter.StateConverter;
 import nl.unionsoft.sysstate.dao.InstanceDao;
@@ -247,7 +249,16 @@ public class StateLogicImpl implements StateLogic {
                 .map(st -> getLastStateForInstance(instance, st))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
+                .sorted((a, b) -> b.getLastUpdate().compareTo(a.getLastUpdate()))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<StateDto> getStatesForInstance(InstanceDto instance) {
+        return stateDao.getStatesForInstance(instance.getId()).stream()
+        .map(stateConverter::convert)
+        .sorted((a, b) -> b.getLastUpdate().compareTo(a.getLastUpdate()))
+        .collect(Collectors.toList());
     }
 
 }

@@ -51,6 +51,24 @@
 		</jsp:include>
 	</c:forEach>
 </table>
+<h3>History</h3>
+<table id="states-table">
+	<tr>
+		<th class="table-header-repeat line-left">&nbsp;</th>
+		<th class="table-header-repeat line-left"><a href="">Last</a></th>
+		<th class="table-header-repeat line-left"><a href="">Description</a></th>
+		<th class="table-header-repeat line-left"><a href="">responseTime</a></th>
+		<th class="table-header-repeat line-left"><a href="">creationDate</a></th>
+		<th class="table-header-repeat line-left"><a href="">lastUpdate</a></th>
+	</tr>
+	<c:forEach var="historyState" items="${states}" >
+		<c:set var="state" value="${historyState}" scope="request"/>
+		<jsp:include page="/WEB-INF/jsp/common/state.jsp">
+			<jsp:param name="alternateRow" value="false"/>
+		</jsp:include>
+	</c:forEach>
+</table>
+
 
 <h3>Instance Links</h3>
 <table id="instancelink-table">
