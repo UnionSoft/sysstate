@@ -19,7 +19,7 @@
 			<tr id="row_prj_${project.id}" class="row_prj <#if project_index % 2 == 0>row_prj_odd<#else>row_prj_even</#if>">
 				<#if showProjectColumn!true>
 					<th class="row_prj_name">
-						<a href="${contextPath}/filter/index.html?projects=${project.id?c}/index.html" >
+						<a href="${contextPath}/filter/index.html?projects=${project.id?c}" >
 							${project.name}
 						</a>
 					</th>
