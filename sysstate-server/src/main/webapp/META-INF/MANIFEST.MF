@@ -1,4 +1,0 @@
-Manifest-Version: 1.0
-plugin-id: sysstate
-plugin-version: ${project.version}
-plugin-properties: /nl/unionsoft/sysstate/global.properties

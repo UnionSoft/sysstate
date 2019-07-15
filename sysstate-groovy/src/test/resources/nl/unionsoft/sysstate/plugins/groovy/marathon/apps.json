@@ -1,9 +1,0 @@
-
-{
-	"apps": [{
-		"id": "/alpha-first/first"
-	},
-	{
-        "id": "/beta-second/second"
-    }]
-}
